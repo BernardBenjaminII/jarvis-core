@@ -25,6 +25,7 @@ Tech Stack
    System: Linux, systemd
    Other: REST APIs, JSON-based communication
 Project Structure
+
    jarvis-core/
    │── src/
    │   ├── main.py          # FastAPI entry point
