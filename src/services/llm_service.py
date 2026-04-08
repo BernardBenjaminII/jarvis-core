@@ -1,26 +1,36 @@
-import os
 import requests
+import os
 from openai import OpenAI
 
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-def ask_llm(prompt: str, model: str = "tinyllama") -> str:
+def query_llm(prompt: str, mode: str = "medium") -> str:
     try:
         # ☁️ CLOUD
-        if model == "cloud":
+        if mode == "cloud":
             r = client.chat.completions.create(
                 model="gpt-4o-mini",
                 messages=[{"role": "user", "content": prompt}]
             )
             return r.choices[0].message.content
 
-        # 🧠 LOCAL (Ollama)
+        # 🧠 LOCAL MODEL MAPPING
+        if mode == "low":
+            model = "tinyllama"
+        elif mode == "high":
+            model = "mistral"
+        else:
+            model = "phi3.5"
+
         r = requests.post(
             "http://localhost:11434/api/generate",
-            json={"model": model, "prompt": prompt, "stream": False},
-            timeout=120
+            json={
+                "model": model,
+                "prompt": prompt,
+                "stream": False
+            }
         )
-        r.raise_for_status()
+
         return r.json()["response"]
 
     except Exception as e:

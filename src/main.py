@@ -1,18 +1,17 @@
 from fastapi import FastAPI
-from pydantic import BaseModel
-from src.brain import process_query
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
+from src.routes.api import router
 
 app = FastAPI()
+app.mount("/static", StaticFiles(directory="src/static"), name="static")
 
-class Query(BaseModel):
-    question: str
-    mode: str = "full"
+app.include_router(router)
 
 @app.get("/")
 def root():
     return {"status": "JARVIS Core Online"}
 
-@app.post("/ask")
-def ask(q: Query):
-    response = process_query(q.question, q.mode)
-    return {"response": response}
+@app.get("/ui")
+def ui():
+    return FileResponse("src/static/index.html")
