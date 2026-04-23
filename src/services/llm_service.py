@@ -23,8 +23,23 @@ def query_local(prompt):
         },
         timeout=60
     )
-    return response.json()["response"], "mistra/local"
 
+    data = response.json()
+    print("[DEBUG] Ollama raw response:", data)  # 👈 keep this for now
+
+    # ✅ Normal case
+    if "response" in data:
+        return data["response"], "mistral/local"
+
+    # ⚠️ Chat-style fallback
+    if "message" in data and "content" in data["message"]:
+        return data["message"]["content"], "mistral/local"
+
+    # ❌ Error case
+    if "error" in data:
+        raise Exception(data["error"])
+
+    raise Exception(f"Unknown Ollama response format: {data}")
 
 # ☁️ Cloud LLM (OpenAI)
 def query_cloud(prompt):

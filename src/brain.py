@@ -2,9 +2,13 @@ from src.services.llm_service import query_llm
 from src.services.tools import run_tool
 from src.memory import save_interaction, get_recent_context
 
-def build_prompt(question):
+
+def build_prompt(question, context):
     return f"""
 You are JARVIS, an advanced AI assistant.
+
+Recent Context:
+{context}
 
 User Query:
 {question}
@@ -13,34 +17,38 @@ Response:
 """.strip()
 
 
-def process_query(question, mode="local"):
-    full_prompt = build_prompt(question)
-
-    try:
-        response = query_llm(full_prompt, mode)
-        return response
-
-    except Exception:
-        response = query_llm(full_prompt, "cloud")
-        return response
-
-def select_mode(question: str) -> str:
+def should_use_tool(question: str):
     q = question.lower()
 
-    # 🔧 Tool-type / simple
-    if len(q) < 30:
-        return "low"
+    tool_keywords = [
+        "time", "date",
+        "status", "cpu", "memory", "disk",
+        "ip", "network", "scan", "ping",
+        "find", "search", "read",
+        "run", "execute",
+        "process", "kill"
+    ]
 
-    # ⚡ Simple factual
-    if any(x in q for x in ["what is", "who is", "when", "where"]):
-        return "medium"
+    return any(k in q for k in tool_keywords)
 
-    # 🧠 Complex reasoning
-    if any(x in q for x in ["design", "architecture", "explain deeply", "analyze"]):
-        return "high"
 
-    # ☁️ Very complex or vague → cloud
-    if len(q) > 200:
-        return "cloud"
+def process_query(question, mode="local"):
+    try:
+        # 🧠 Memory
+        context = get_recent_context()
 
-    return "medium"
+        # 🛠️ Tool routing
+        if should_use_tool(question):
+            result = run_tool(question)
+            save_interaction(question, result)
+            return f"[JARVIS: tool]\n{result}"
+
+        # 🤖 LLM
+        full_prompt = build_prompt(question, context)
+        response = query_llm(full_prompt, "local")
+
+        save_interaction(question, response)
+        return response
+
+    except Exception as e:
+        return f"[BRAIN ERROR] {str(e)}"
