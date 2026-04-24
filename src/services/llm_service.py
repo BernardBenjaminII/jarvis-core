@@ -12,34 +12,48 @@ def is_ollama_available():
         return False
 
 
-# 🧠 Local LLM (Ollama)
+# 🧼 Clean model output (prevents duplicate tags)
+def clean_response(text):
+    if text.startswith("[JARVIS"):
+        return text.split("]", 1)[-1].strip()
+    return text.strip()
+
+
+# 🧠 Local LLM with fallback models
 def query_local(prompt):
-    response = requests.post(
-        "http://localhost:11434/api/generate",
-        json={
-            "model": "mistral",
-            "prompt": prompt,
-            "stream": False
-        },
-        timeout=60
-    )
 
-    data = response.json()
-    print("[DEBUG] Ollama raw response:", data)  # 👈 keep this for now
+    models = ["tinyllama", "phi3", "mistral"]  # ⚡ ordered by speed → power
 
-    # ✅ Normal case
-    if "response" in data:
-        return data["response"], "mistral/local"
+    for model in models:
+        try:
+            response = requests.post(
+                "http://localhost:11434/api/generate",
+                json={
+                    "model": model,
+                    "prompt": prompt,
+                    "stream": False
+                },
+                timeout=180  # ⬅️ increased timeout
+            )
 
-    # ⚠️ Chat-style fallback
-    if "message" in data and "content" in data["message"]:
-        return data["message"]["content"], "mistral/local"
+            data = response.json()
+            print(f"[DEBUG] ({model}) response:", data)
 
-    # ❌ Error case
-    if "error" in data:
-        raise Exception(data["error"])
+            if "response" in data:
+                return clean_response(data["response"]), f"{model}/local"
 
-    raise Exception(f"Unknown Ollama response format: {data}")
+            if "message" in data and "content" in data["message"]:
+                return clean_response(data["message"]["content"]), f"{model}/local"
+
+            if "error" in data:
+                raise Exception(data["error"])
+
+        except Exception as e:
+            print(f"[LLM] {model} failed: {e}")
+            continue
+
+    raise Exception("All local models failed")
+
 
 # ☁️ Cloud LLM (OpenAI)
 def query_cloud(prompt):
@@ -52,7 +66,7 @@ def query_cloud(prompt):
         ]
     )
 
-    return response.choices[0].message.content, "openai/cloud"
+    return clean_response(response.choices[0].message.content), "openai/cloud"
 
 
 # 🚀 MAIN ENTRY

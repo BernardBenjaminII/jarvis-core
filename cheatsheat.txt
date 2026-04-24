@@ -258,3 +258,15 @@ jarvis-core/
 ========================================
 END
 ========================================
+///////////////////////////////////////\
+========================================
+Network Guardian Commands
+========================================
+Quick network check 
+full network check 
+show interfaces 
+show routes
+stop docker
+reset docker network
+
+[][][[][][][][][][][][][][][][][][][][][]
